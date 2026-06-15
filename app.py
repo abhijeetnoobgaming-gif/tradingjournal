@@ -10,42 +10,44 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Heavy-duty CSS block to hide GitHub icon, top headers, deployment buttons, and footers
+# ULTIMATE NUKE OPTION CSS - Forcing absolutely all Streamlit branding, icons, and footers to disappear
 hide_menu_style = """
     <style>
-    #MainMenu {visibility: hidden !important;}
-    footer {visibility: hidden !important;}
-    header {visibility: hidden !important;}
+    /* 1. Hide the main headers, menus, and footers completely */
+    #MainMenu {visibility: hidden !important; display: none !important;}
+    footer {visibility: hidden !important; display: none !important;}
+    header {visibility: hidden !important; display: none !important;}
+    [data-testid="stHeader"] {display: none !important;}
     
-    /* Completely removes the top deployment toolbar and GitHub code tracking buttons */
+    /* 2. Remove the top deployment toolbar and GitHub code links */
     div[data-testid="stToolbar"] {visibility: hidden !important; display: none !important;}
     button[title="View source code"] {display: none !important;}
     
-    /* Hides the floating Streamlit badge icon on mobile and web viewports */
-    .viewerBadge_container__1QSob {display: none !important;}
-    div[class^="viewerBadge_"] {display: none !important;}
-    iframe[title="Managed Hosting Badge"] {display: none !important;}
+    /* 3. Kill the floating Streamlit phone menu/badge button completely */
+    .viewerBadge_container__1QSob {display: none !important; visibility: hidden !important;}
+    div[class^="viewerBadge_"] {display: none !important; visibility: hidden !important;}
+    iframe[title="Managed Hosting Badge"] {display: none !important; visibility: hidden !important;}
     
-    /* Adjusts the top layout padding space where the header used to sit */
+    /* 4. Target the new mobile overlay menus and action bars */
+    div[data-testid="stActionButton"] {display: none !important;}
+    div[data-testid="stNotification"] {border: none !important;}
     .styles_borderWrapper__lCvak {border: none !important;}
-    [data-testid="stHeader"] {background: rgba(0,0,0,0) !important; text-indent: -99999px !important;}
+    
+    #root > div:nth-child(1) > div > div > div > div > section > div {padding-top: 0rem !important;}
     </style>
 """
 st.markdown(hide_menu_style, unsafe_allow_html=True)
 
 
 # --- 2. DATABASE IN-MEMORY INITIALIZATION ---
-# Simulated database system to keep accounts separate
 if "user_database" not in st.session_state:
     st.session_state.user_database = {
         "abhijeet@gmail.com": {"password": "SmcTrader2026", "name": "Abhijeet"}
     }
 
-# Tracks logged-in profile metrics
 if "logged_in_user" not in st.session_state:
     st.session_state.logged_in_user = None
 
-# System memory allocation per individual profile
 if "user_data_stores" not in st.session_state:
     st.session_state.user_data_stores = {}
 
@@ -67,7 +69,6 @@ def render_auth_gateway():
     
     st.write("## 🔒 Trade Diary Gateway")
     
-    # Selection tabs for logging in vs building an account profile
     tab_login, tab_signup = st.tabs(["🔑 Account Login", "📝 Create New Profile"])
     
     with tab_login:
@@ -99,7 +100,6 @@ def render_auth_gateway():
             elif new_email in st.session_state.user_database:
                 st.error("An account configuration profile already exists matching this email pointer.")
             else:
-                # Add to memory user file structure mapping layouts
                 st.session_state.user_database[new_email] = {"password": new_password, "name": new_name}
                 st.success("Registration verification confirmed! You can now log in under the Login tab setup.")
 
@@ -111,7 +111,6 @@ else:
     current_email = st.session_state.logged_in_user
     user_profile = st.session_state.user_database[current_email]
     
-    # Initialize the specific logged-in user's data isolated file structure
     if current_email not in st.session_state.user_data_stores:
         st.session_state.user_data_stores[current_email] = {
             "trades": pd.DataFrame(columns=["Date", "Pair", "Direction", "Entry", "SL", "TP", "P&L", "Status", "Reason"]),
@@ -124,11 +123,9 @@ else:
             ]
         }
     
-    # Shortcuts to current profile storage instances
     user_trades = st.session_state.user_data_stores[current_email]["trades"]
     user_rules = st.session_state.user_data_stores[current_email]["rules"]
 
-    # Sidebar Navigation System Layout
     st.sidebar.markdown(f"### 👋 Welcome, **{user_profile['name']}**")
     st.sidebar.caption(f"Profile: {current_email}")
     if st.sidebar.button("🚪 Close Workspace (Logout)", use_container_width=True):
