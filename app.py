@@ -1,4 +1,52 @@
 import streamlit as st
+
+# 1. Page Configuration (Must be the very first Streamlit command)
+st.set_page_config(
+    page_title="Custom Trade Diary",
+    layout="centered",
+    initial_sidebar_state="collapsed"
+)
+
+# 2. CSS to hide GitHub icon, Streamlit header, footer, and menus
+hide_menu_style = """
+    <style>
+    #MainMenu {visibility: hidden;}
+    footer {visibility: hidden;}
+    header {visibility: hidden;}
+    div[data-testid="stToolbar"] {visibility: hidden;}
+    button[title="View source code"] {display: none !important;}
+    .viewerBadge_container__1QSob {display: none !important;}
+    </style>
+"""
+st.markdown(hide_menu_style, unsafe_allow_html=True)
+
+# 3. Your App Interface (Trade Diary Gateway)
+st.markdown("<h1 style='text-align: center;'>🔒 Trade Diary Gateway</h1>", unsafe_allow_html=True)
+
+# Create tabs for Login and Profile creation
+tab1, tab2 = st.tabs(["🔑 Account Login", "📝 Create New Profile"])
+
+with tab1:
+    st.write("") # Spacing
+    email = st.text_input("Registered Email Address", placeholder="name@example.com", key="login_email")
+    password = st.text_input("Password Verification", type="password", placeholder="********", key="login_pass")
+    
+    st.write("")
+    if st.button("Unlock My Dashboard", use_container_width=True):
+        # Your login verification logic will go here later
+        st.info("Authentication system ready.")
+
+with tab2:
+    st.write("") # Spacing
+    new_email = st.text_input("Enter Email Address", placeholder="name@example.com", key="reg_email")
+    new_password = st.text_input("Create Secure Password", type="password", placeholder="********", key="reg_pass")
+    confirm_password = st.text_input("Confirm Secure Password", type="password", placeholder="********", key="reg_confirm")
+    
+    st.write("")
+    if st.button("Register New Profile", use_container_width=True):
+        st.info("Registration system ready.")
+
+import streamlit as st
 import pandas as pd
 from datetime import datetime, date
 import altair as alt
