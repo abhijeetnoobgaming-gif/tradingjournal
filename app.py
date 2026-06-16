@@ -3,63 +3,108 @@ import pandas as pd
 from datetime import datetime, date
 import altair as alt
 
-# --- 1. PAGE CONFIGURATION & INTERFACE CLEAN-UP (Must be at the absolute top) ---
+# --- 1. PAGE CONFIGURATION (Must be at the absolute top) ---
 st.set_page_config(
     page_title="Custom Trade Diary", 
     layout="wide", 
     initial_sidebar_state="expanded"
 )
 
-# FIXED NUKE CSS - Hides all branding but leaves space for our custom mobile navbar
-hide_menu_style = """
+# --- 2. THE ULTIMATE HAMBURGER MENU & UI OVERRIDE STYLING ---
+custom_ui_style = """
     <style>
-    /* Hide the main headers, menus, and footers completely */
+    /* Nuke Streamlit's default headers, toolbars, and branding badges permanently */
     #MainMenu {visibility: hidden !important; display: none !important;}
     footer {visibility: hidden !important; display: none !important;}
     header {visibility: hidden !important; display: none !important;}
     [data-testid="stHeader"] {display: none !important;}
-    
-    /* Remove the top deployment toolbar and GitHub code links */
     div[data-testid="stToolbar"] {visibility: hidden !important; display: none !important;}
     button[title="View source code"] {display: none !important;}
-    
-    /* Kill the floating Streamlit phone menu/badge button completely */
     .viewerBadge_container__1QSob {display: none !important; visibility: hidden !important;}
     div[class^="viewerBadge_"] {display: none !important; visibility: hidden !important;}
     iframe[title="Managed Hosting Badge"] {display: none !important; visibility: hidden !important;}
-    
-    /* Target the new mobile overlay menus and action bars */
     div[data-testid="stActionButton"] {display: none !important;}
-    div[data-testid="stNotification"] {border: none !important;}
-    .styles_borderWrapper__lCvak {border: none !important;}
-    
-    /* Custom Floating Mobile Header Styling */
-    .mobile-nav-bar {
-        display: none;
+
+    /* Adjust page margins cleanly so content doesn't clip */
+    .block-container {
+        padding-top: 3.5rem !important;
+        padding-bottom: 2rem !important;
+    }
+
+    /* --- CUSTOM FLOATING THREE-LINE HAMBURGER MENU CSS --- */
+    .hamburger-container {
         position: fixed;
-        top: 0;
-        left: 0;
-        right: 0;
+        top: 12px;
+        left: 15px;
+        z-index: 9999999;
+        display: flex;
+        align-items: center;
         background-color: #1e3a8a;
-        color: white;
-        padding: 10px 15px;
-        z-index: 999999;
-        font-weight: bold;
-        text-align: center;
-        box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+        padding: 8px 14px;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+        cursor: pointer;
+        border: 1px solid rgba(255,255,255,0.1);
     }
     
-    /* Only show the custom bar on mobile responsive screens */
-    @media (max-width: 768px) {
-        .mobile-nav-bar { display: block; }
-        .stApp { margin-top: 40px !important; }
+    .hamburger-lines {
+        width: 18px;
+        height: 14px;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        margin-right: 8px;
+    }
+    
+    .line {
+        width: 100%;
+        height: 2px;
+        background-color: #ffffff;
+        border-radius: 2px;
+    }
+    
+    .menu-text {
+        color: #ffffff;
+        font-size: 0.85rem;
+        font-weight: 600;
+        letter-spacing: 0.5px;
+        font-family: system-ui, -apple-system, sans-serif;
+    }
+
+    /* Keep sidebar layout clean and interactive */
+    [data-testid="stSidebar"] {
+        background-color: #0d1117 !important;
+        border-right: 1px solid #21262d !important;
     }
     </style>
+
+    <div class="hamburger-container" onclick="toggleStreamlitSidebar()">
+        <div class="hamburger-lines">
+            <div class="line"></div>
+            <div class="line"></div>
+            <div class="line"></div>
+        </div>
+        <div class="menu-text">MENU</div>
+    </div>
+
+    <script>
+    function toggleStreamlitSidebar() {
+        // Targets Streamlit's native sidebar collapse/expand button internally
+        const sidebarButton = window.parent.document.querySelector('button[data-testid="sidebar-toggle"]');
+        if (sidebarButton) {
+            sidebarButton.click();
+        } else {
+            // Fallback for different view configurations
+            const legacyButton = window.parent.document.querySelector('.stSidebar [collapsed="true"] button, .stSidebar button');
+            if (legacyButton) legacyButton.click();
+        }
+    }
+    </script>
 """
-st.markdown(hide_menu_style, unsafe_allow_html=True)
+st.markdown(custom_ui_style, unsafe_allow_html=True)
 
 
-# --- 2. DATABASE IN-MEMORY INITIALIZATION ---
+# --- 3. DATABASE IN-MEMORY INITIALIZATION ---
 if "user_database" not in st.session_state:
     st.session_state.user_database = {
         "abhijeet@gmail.com": {"password": "SmcTrader2026", "name": "Abhijeet"}
@@ -72,7 +117,7 @@ if "user_data_stores" not in st.session_state:
     st.session_state.user_data_stores = {}
 
 
-# --- 3. GATEWAY AUTHENTICATION CONTROLLER ---
+# --- 4. GATEWAY AUTHENTICATION CONTROLLER ---
 def render_auth_gateway():
     st.markdown("""
         <style>
@@ -124,7 +169,7 @@ def render_auth_gateway():
                 st.success("Registration verification confirmed! You can now log in under the Login tab setup.")
 
 
-# --- 4. APPLICATION PROCESS ROUTING CORNER ---
+# --- 5. APPLICATION PROCESS ROUTING ---
 if st.session_state.logged_in_user is None:
     render_auth_gateway()
 else:
@@ -146,16 +191,7 @@ else:
     user_trades = st.session_state.user_data_stores[current_email]["trades"]
     user_rules = st.session_state.user_data_stores[current_email]["rules"]
 
-    # --- DUAL NAVIGATION CONTROLLER (Desktop vs Mobile) ---
-    menu_options = ["Dashboard", "Live Challenge", "Calendar", "Log New Trade", "My Rules Templates"]
-    
-    # 1. Custom Mobile Top Menu Dropdown Selector
-    st.markdown('<div class="mobile-nav-bar">📱 NAVIGATION MENU</div>', unsafe_allow_html=True)
-    
-    # If on mobile, this selectbox appears right at the very top of the page content
-    mobile_menu_placeholder = st.container()
-    
-    # 2. Standard Desktop Sidebar System
+    # --- SIDEBAR SYSTEM CONTROLLER ---
     st.sidebar.markdown(f"### 👋 Welcome, **{user_profile['name']}**")
     st.sidebar.caption(f"Profile: {current_email}")
     if st.sidebar.button("🚪 Close Workspace (Logout)", use_container_width=True):
@@ -165,27 +201,11 @@ else:
     st.sidebar.markdown("---")
     st.sidebar.title("📈 Navigation Menu")
     
-    # We synchronize both selectors using state keys
-    if "nav_selection" not in st.session_state:
-        st.session_state.nav_selection = "Dashboard"
-        
-    desktop_menu = st.sidebar.radio(
+    menu = st.sidebar.radio(
         "Go To",
-        menu_options,
-        key="desktop_nav_radio"
+        ["Dashboard", "Live Challenge", "Calendar", "Log New Trade", "My Rules Templates"],
+        key="app_navigation_radio"
     )
-    
-    with mobile_menu_placeholder:
-        # This input dropdown block only stands out clearly on mobile views
-        mobile_menu = st.selectbox("📱 Mobile Switcher:", menu_options, key="mobile_nav_box")
-    
-    # Check which menu was interacted with and update page router master choice
-    if st.session_state.desktop_nav_radio != st.session_state.nav_selection:
-        st.session_state.nav_selection = st.session_state.desktop_nav_radio
-    elif st.session_state.mobile_nav_box != st.session_state.nav_selection:
-        st.session_state.nav_selection = st.session_state.mobile_nav_box
-        
-    menu = st.session_state.nav_selection
 
     # 1. DASHBOARD COMPONENT
     if menu == "Dashboard":
@@ -223,7 +243,7 @@ else:
             ).properties(height=300)
             st.altair_chart(chart, use_container_width=True)
         else:
-            st.info("No trades logged yet. Change selector to 'Log New Trade' to add your first setup!")
+            st.info("No trades logged yet. Toggle the menu to 'Log New Trade' to add your first setup!")
 
     # 2. LIVE CHALLENGE COMPONENT
     elif menu == "Live Challenge":
@@ -284,50 +304,12 @@ else:
         
         rule_checks = []
         for rule in user_rules:
-            rule_checks.append(st.checkbox(rule, key=f"check_{rule}"))
+            rule_checks.append(st.checkbox(rule, key=f"form_check_{rule}"))
             
         all_rules_passed = all(rule_checks)
         st.markdown("---")
         
-        with st.form("trade_form"):
+        with st.form("trade_entry_form"):
             col1, col2, col3 = st.columns(3)
             trade_date = col1.date_input("Trade Date", date.today())
             pair = col2.text_input("Asset/Pair", "EURUSD")
-            direction = col3.selectbox("Direction", ["Long", "Short"])
-            
-            col4, col5, col6, col7 = st.columns(4)
-            entry_p = col4.number_input("Entry Price", value=0.0, format="%.5f")
-            sl_p = col5.number_input("Stop Loss", value=0.0, format="%.5f")
-            tp_p = col6.number_input("Take Profit", value=0.0, format="%.5f")
-            pl_val = col7.number_input("Net P&L Realized (₹)", value=0.0)
-            
-            status = st.selectbox("Outcome Status", ["Win", "Loss", "Breakeven"])
-            reason = st.text_area("Market Analysis Notes & Confluence Reason")
-            
-            submit = st.form_submit_button("Lock & Save Trade Details")
-            
-            if submit:
-                if not all_rules_passed:
-                    st.error("🛑 RULE VIOLATION DETECTED! Satisfy all rules confluences first.")
-                else:
-                    new_row = {
-                        "Date": str(trade_date), "Pair": pair, "Direction": direction,
-                        "Entry": entry_p, "SL": sl_p, "TP": tp_p, "P&L": pl_val,
-                        "Status": status, "Reason": reason
-                    }
-                    st.session_state.user_data_stores[current_email]["trades"] = pd.concat([user_trades, pd.DataFrame([new_row])], ignore_index=True)
-                    st.success("🎯 Trade logged securely to your personal account profile history!")
-                    st.rerun()
-
-    # 5. CUSTOM RULES TEMPLATES COMPONENT
-    elif menu == "My Rules Templates":
-        st.title("🛡️ Trading Rules & Discipline Strategy")
-        new_rule = st.text_input("Add a core operational rule:")
-        if st.button("Add Strategy Rule") and new_rule:
-            st.session_state.user_data_stores[current_email]["rules"].append(new_rule)
-            st.success("New operational rule saved!")
-            st.rerun()
-            
-        st.write("### Current Active Rules:")
-        for idx, rule in enumerate(user_rules):
-            st.write(f"**{idx+1}.** {rule}")
