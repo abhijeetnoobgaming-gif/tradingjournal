@@ -1,315 +1,103 @@
 import streamlit as st
 import pandas as pd
 from datetime import datetime, date
-import altair as alt
 
-# --- 1. PAGE CONFIGURATION (Must be at the absolute top) ---
-st.set_page_config(
-    page_title="Custom Trade Diary", 
-    layout="wide", 
-    initial_sidebar_state="expanded"
-)
+# --- 1. PAGE CONFIGURATION ---
+st.set_page_config(page_title="Trade Diary", layout="wide", initial_sidebar_state="collapsed")
 
-# --- 2. THE ULTIMATE HAMBURGER MENU & UI OVERRIDE STYLING ---
-custom_ui_style = """
+# --- 2. CUSTOM UI (HAMBURGER & SIDEBAR) ---
+st.markdown("""
     <style>
-    /* Nuke Streamlit's default headers, toolbars, and branding badges permanently */
-    #MainMenu {visibility: hidden !important; display: none !important;}
-    footer {visibility: hidden !important; display: none !important;}
-    header {visibility: hidden !important; display: none !important;}
+    /* Hide Default Streamlit Elements */
+    #MainMenu {visibility: hidden;} footer {visibility: hidden;} header {visibility: hidden;}
     [data-testid="stHeader"] {display: none !important;}
-    div[data-testid="stToolbar"] {visibility: hidden !important; display: none !important;}
-    button[title="View source code"] {display: none !important;}
-    .viewerBadge_container__1QSob {display: none !important; visibility: hidden !important;}
-    div[class^="viewerBadge_"] {display: none !important; visibility: hidden !important;}
-    iframe[title="Managed Hosting Badge"] {display: none !important; visibility: hidden !important;}
-    div[data-testid="stActionButton"] {display: none !important;}
-
-    /* Adjust page margins cleanly so content doesn't clip */
-    .block-container {
-        padding-top: 3.5rem !important;
-        padding-bottom: 2rem !important;
-    }
-
-    /* --- CUSTOM FLOATING THREE-LINE HAMBURGER MENU CSS --- */
-    .hamburger-container {
-        position: fixed;
-        top: 12px;
-        left: 15px;
-        z-index: 9999999;
-        display: flex;
-        align-items: center;
-        background-color: #1e3a8a;
-        padding: 8px 14px;
-        border-radius: 8px;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.25);
-        cursor: pointer;
-        border: 1px solid rgba(255,255,255,0.1);
-    }
     
-    .hamburger-lines {
-        width: 18px;
-        height: 14px;
+    /* Custom Floating Hamburger */
+    .menu-trigger {
+        position: fixed;
+        top: 15px;
+        left: 15px;
+        z-index: 99999;
+        cursor: pointer;
+        background: #1E3A8A;
+        padding: 10px;
+        border-radius: 5px;
         display: flex;
         flex-direction: column;
-        justify-content: space-between;
-        margin-right: 8px;
+        gap: 4px;
     }
-    
-    .line {
-        width: 100%;
-        height: 2px;
-        background-color: #ffffff;
-        border-radius: 2px;
-    }
-    
-    .menu-text {
-        color: #ffffff;
-        font-size: 0.85rem;
-        font-weight: 600;
-        letter-spacing: 0.5px;
-        font-family: system-ui, -apple-system, sans-serif;
-    }
+    .bar { width: 20px; height: 2px; background: white; border-radius: 2px; }
 
-    /* Keep sidebar layout clean and interactive */
+    /* Sidebar Styling */
     [data-testid="stSidebar"] {
-        background-color: #0d1117 !important;
-        border-right: 1px solid #21262d !important;
+        background-color: #0f172a !important;
+        border-right: 1px solid #1e293b;
     }
     </style>
 
-    <div class="hamburger-container" onclick="toggleStreamlitSidebar()">
-        <div class="hamburger-lines">
-            <div class="line"></div>
-            <div class="line"></div>
-            <div class="line"></div>
-        </div>
-        <div class="menu-text">MENU</div>
+    <div class="menu-trigger" onclick="window.parent.document.querySelector('button[data-testid=\'sidebar-toggle\']').click()">
+        <div class="bar"></div>
+        <div class="bar"></div>
+        <div class="bar"></div>
     </div>
+""", unsafe_allow_html=True)
 
-    <script>
-    function toggleStreamlitSidebar() {
-        // Targets Streamlit's native sidebar collapse/expand button internally
-        const sidebarButton = window.parent.document.querySelector('button[data-testid="sidebar-toggle"]');
-        if (sidebarButton) {
-            sidebarButton.click();
-        } else {
-            // Fallback for different view configurations
-            const legacyButton = window.parent.document.querySelector('.stSidebar [collapsed="true"] button, .stSidebar button');
-            if (legacyButton) legacyButton.click();
-        }
-    }
-    </script>
-"""
-st.markdown(custom_ui_style, unsafe_allow_html=True)
+# --- 3. SESSION STATE ---
+if "logged_in" not in st.session_state:
+    st.session_state.logged_in = True # Set to True for demonstration
 
-
-# --- 3. DATABASE IN-MEMORY INITIALIZATION ---
-if "user_database" not in st.session_state:
-    st.session_state.user_database = {
-        "abhijeet@gmail.com": {"password": "SmcTrader2026", "name": "Abhijeet"}
-    }
-
-if "logged_in_user" not in st.session_state:
-    st.session_state.logged_in_user = None
-
-if "user_data_stores" not in st.session_state:
-    st.session_state.user_data_stores = {}
-
-
-# --- 4. GATEWAY AUTHENTICATION CONTROLLER ---
-def render_auth_gateway():
-    st.markdown("""
-        <style>
-        .auth-card {
-            background-color: #ffffff;
-            padding: 2rem;
-            border-radius: 12px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
-            margin-bottom: 20px;
-        }
-        h2 { text-align: center; color: #1E3A8A; margin-bottom: 1.5rem; }
-        </style>
-    """, unsafe_allow_html=True)
+# --- 4. NAVIGATION & PAGES ---
+def main():
+    st.sidebar.markdown("<br><br>", unsafe_allow_html=True)
+    st.sidebar.title("Navigation")
     
-    st.write("## 🔒 Trade Diary Gateway")
-    
-    tab_login, tab_signup = st.tabs(["🔑 Account Login", "📝 Create New Profile"])
-    
-    with tab_login:
-        st.markdown('<div class="auth-card">', unsafe_allow_html=True)
-        login_email = st.text_input("Registered Email Address", key="login_email_input", placeholder="name@example.com").strip().lower()
-        login_password = st.text_input("Password Verification", type="password", key="login_pass_input", placeholder="••••••••")
-        
-        if st.button("Unlock My Dashboard", use_container_width=True):
-            if login_email in st.session_state.user_database and st.session_state.user_database[login_email]["password"] == login_password:
-                st.session_state.logged_in_user = login_email
-                st.success(f"Welcome back, {st.session_state.user_database[login_email]['name']}! Synchronizing history metrics...")
-                st.rerun()
-            else:
-                st.error("Authentication check failed. Please verify credentials or create an account template profile.")
-        st.markdown('</div>', unsafe_allow_html=True)
-
-    with tab_signup:
-        st.markdown('<div class="auth-card">', unsafe_allow_html=True)
-        new_name = st.text_input("Trader Name / Nickname", placeholder="Alex")
-        new_email = st.text_input("Your Email Address", key="signup_email_input", placeholder="alex@trading.com").strip().lower()
-        new_password = st.text_input("Create Secure Access Password", type="password", key="signup_pass_input", placeholder="Minimum 6 characters")
-        confirm_password = st.text_input("Confirm Access Password", type="password", placeholder="Repeat your password")
-        
-        if st.button("Register & Initialize Journal", use_container_width=True):
-            if not new_name or not new_email or not new_password:
-                st.error("All processing profile input blocks must be populated.")
-            elif new_password != confirm_password:
-                st.error("Passwords do not match.")
-            elif new_email in st.session_state.user_database:
-                st.error("An account configuration profile already exists matching this email pointer.")
-            else:
-                st.session_state.user_database[new_email] = {"password": new_password, "name": new_name}
-                st.success("Registration verification confirmed! You can now log in under the Login tab setup.")
-
-
-# --- 5. APPLICATION PROCESS ROUTING ---
-if st.session_state.logged_in_user is None:
-    render_auth_gateway()
-else:
-    current_email = st.session_state.logged_in_user
-    user_profile = st.session_state.user_database[current_email]
-    
-    if current_email not in st.session_state.user_data_stores:
-        st.session_state.user_data_stores[current_email] = {
-            "trades": pd.DataFrame(columns=["Date", "Pair", "Direction", "Entry", "SL", "TP", "P&L", "Status", "Reason"]),
-            "rules": [
-                "Waited for higher timeframe (4H) trend alignment?",
-                "Liquidity swept before entry?",
-                "15M Market Structure Shift (MSS) or Change of Character (CHoCH) confirmed?",
-                "Entry placed strictly at the valid Order Block (1M/15M)?",
-                "Risk managed correctly? (Max 1-2% per trade)"
-            ]
-        }
-    
-    user_trades = st.session_state.user_data_stores[current_email]["trades"]
-    user_rules = st.session_state.user_data_stores[current_email]["rules"]
-
-    # --- SIDEBAR SYSTEM CONTROLLER ---
-    st.sidebar.markdown(f"### 👋 Welcome, **{user_profile['name']}**")
-    st.sidebar.caption(f"Profile: {current_email}")
-    if st.sidebar.button("🚪 Close Workspace (Logout)", use_container_width=True):
-        st.session_state.logged_in_user = None
-        st.rerun()
-        
-    st.sidebar.markdown("---")
-    st.sidebar.title("📈 Navigation Menu")
-    
-    menu = st.sidebar.radio(
-        "Go To",
-        ["Dashboard", "Live Challenge", "Calendar", "Log New Trade", "My Rules Templates"],
-        key="app_navigation_radio"
+    # Menu Options
+    page = st.sidebar.radio(
+        "GO TO:",
+        ["Dashboard", "Trade Log", "Calendar"],
+        label_visibility="collapsed"
     )
 
-    # 1. DASHBOARD COMPONENT
-    if menu == "Dashboard":
-        st.title("📊 Trading Dashboard")
-        total_trades = len(user_trades)
-        
-        if total_trades > 0:
-            total_pl = user_trades["P&L"].sum()
-            wins = len(user_trades[user_trades["Status"] == "Win"])
-            win_rate = (wins / total_trades) * 100
-        else:
-            total_pl = 0.0
-            win_rate = 0.0
-
+    if page == "Dashboard":
+        st.title("📈 Performance Dashboard")
         col1, col2, col3 = st.columns(3)
-        col1.metric("TOTAL P&L", f"₹{total_pl:,.2f}", delta=f"{'🟢' if total_pl >= 0 else '🔴'}")
-        col2.metric("WIN RATE", f"{win_rate:.1f}%")
-        col3.metric("TOTAL TRADES", total_trades)
-        
-        st.markdown("---")
-        st.subheader("🗓️ Performance by Day")
-        if total_trades > 0:
-            user_trades['Day_of_Week'] = pd.to_datetime(user_trades['Date']).dt.day_name()
-            day_stats = user_trades.groupby('Day_of_Week').agg(
-                Total_PL=('P&L', 'sum'),
-                Trades=('Status', 'count'),
-                Wins=('Status', lambda x: (x == 'Win').sum())
-            ).reset_index()
-            day_stats['Win_Rate_%'] = (day_stats['Wins'] / day_stats['Trades']) * 100
-            
-            chart = alt.Chart(day_stats).mark_bar().encode(
-                x='Day_of_Week:N',
-                y='Win_Rate_%:Q',
-                color=alt.value("#29b5e8")
-            ).properties(height=300)
-            st.altair_chart(chart, use_container_width=True)
-        else:
-            st.info("No trades logged yet. Toggle the menu to 'Log New Trade' to add your first setup!")
+        col1.metric("Net PnL", "$1,250")
+        col2.metric("Win Rate", "65%")
+        col3.metric("Trades", "24")
 
-    # 2. LIVE CHALLENGE COMPONENT
-    elif menu == "Live Challenge":
-        st.title("🎯 Capital Growth Challenge")
-        col1, col2 = st.columns(2)
-        with col1:
-            start_date = st.date_input("Start Date", date(2026, 6, 10))
-            end_date = st.date_input("Target Date", date(2026, 6, 15))
-        with col2:
-            target_amt = st.number_input("Target Profit ($)", value=15.0)
-            current_profit = st.number_input("Current Profit Accrued ($)", value=0.0)
+    elif page == "Trade Log":
+        st.title("📝 Log Your Trades")
+        with st.form("entry_form"):
+            c1, c2 = st.columns(2)
+            c1.text_input("Asset Symbol")
+            c1.number_input("Entry Price")
+            c2.selectbox("Position", ["Long", "Short"])
+            c2.number_input("Quantity")
+            st.form_submit_button("Save Trade")
 
-        today = date(2026, 6, 15)
-        days_remaining = (end_date - today).days if end_date >= today else 0
-        remaining_target = max(target_amt - current_profit, 0.0)
-        daily_needed = remaining_target / days_remaining if days_remaining > 0 else remaining_target
+    elif page == "Calendar":
+        st.title("📅 Trading Calendar")
+        # Simplified Calendar View
+        d = st.date_input("Select Date to View Trades", date.today())
+        st.info(f"Viewing history for {d}")
+        # Dummy data
+        st.table(pd.DataFrame({
+            'Time': ['10:30', '14:15'],
+            'Symbol': ['BTC', 'ETH'],
+            'PnL': ['+$200', '-$50']
+        }))
 
-        st.markdown("---")
-        c1, c2, c3 = st.columns(3)
-        c1.metric("Days Remaining", f"{days_remaining} Days")
-        c2.metric("Remaining Target", f"${remaining_target:.2f}")
-        c3.metric("Adjusted Daily Target", f"${daily_needed:.2f}/day")
-        
-        progress_pct = min(int((current_profit / target_amt) * 100), 100) if target_amt > 0 else 0
-        st.write(f"**Challenge Progress: {progress_pct}% Completed**")
-        st.progress(progress_pct / 100)
+    # Logout at bottom of sidebar
+    st.sidebar.markdown("---")
+    if st.sidebar.button("Logout"):
+        st.session_state.logged_in = False
+        st.rerun()
 
-    # 3. CALENDAR COMPONENT
-    elif menu == "Calendar":
-        st.title("📅 Trading Calendar View")
-        st.markdown("""
-        <style>
-        .calendar-box { border: 1px solid #ddd; border-radius: 5px; padding: 15px; text-align: center; background-color: #f9f9f9; min-height: 80px;}
-        .green-day { background-color: #d4edda !important; color: #155724; font-weight: bold; }
-        .red-day { background-color: #f8d7da !important; color: #721c24; font-weight: bold; }
-        </style>
-        """, unsafe_allow_html=True)
-        st.write("### June 2026")
-        
-        row1 = st.columns(7)
-        days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
-        for idx, col in enumerate(row1):
-            col.write(f"**{days[idx]}**")
-            
-        row2 = st.columns(7)
-        row2[0].markdown('<div class="calendar-box"></div>', unsafe_allow_html=True)
-        row2[1].markdown('<div class="calendar-box">1<br><small>₹0</small></div>', unsafe_allow_html=True)
-        row2[2].markdown('<div class="calendar-box green-day">2<br><small>+₹500</small></div>', unsafe_allow_html=True)
-        row2[3].markdown('<div class="calendar-box">3<br><small>₹0</small></div>', unsafe_allow_html=True)
-        row2[4].markdown('<div class="calendar-box red-day">4<br><small>-₹250</small></div>', unsafe_allow_html=True)
-        row2[5].markdown('<div class="calendar-box">5<br><small>₹0</small></div>', unsafe_allow_html=True)
-        row2[6].markdown('<div class="calendar-box">6<br><small>₹0</small></div>', unsafe_allow_html=True)
-
-    # 4. LOG NEW TRADE COMPONENT
-    elif menu == "Log New Trade":
-        st.title("📝 Journal a New Trade Entry")
-        st.warning("⚠️ CRITICAL COMPLIANCE: Verify your trading execution rules below before submitting!")
-        
-        rule_checks = []
-        for rule in user_rules:
-            rule_checks.append(st.checkbox(rule, key=f"form_check_{rule}"))
-            
-        all_rules_passed = all(rule_checks)
-        st.markdown("---")
-        
-        with st.form("trade_entry_form"):
-            col1, col2, col3 = st.columns(3)
-            trade_date = col1.date_input("Trade Date", date.today())
-            pair = col2.text_input("Asset/Pair", "EURUSD")
+# --- 5. AUTH GATE ---
+if st.session_state.logged_in:
+    main()
+else:
+    st.title("Please Login")
+    if st.button("Enter App"):
+        st.session_state.logged_in = True
+        st.rerun()
