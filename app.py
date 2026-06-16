@@ -10,30 +10,50 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# ULTIMATE NUKE OPTION CSS - Forcing absolutely all Streamlit branding, icons, and footers to disappear
+# FIXED NUKE CSS - Hides all branding but leaves space for our custom mobile navbar
 hide_menu_style = """
     <style>
-    /* 1. Hide the main headers, menus, and footers completely */
+    /* Hide the main headers, menus, and footers completely */
     #MainMenu {visibility: hidden !important; display: none !important;}
     footer {visibility: hidden !important; display: none !important;}
     header {visibility: hidden !important; display: none !important;}
     [data-testid="stHeader"] {display: none !important;}
     
-    /* 2. Remove the top deployment toolbar and GitHub code links */
+    /* Remove the top deployment toolbar and GitHub code links */
     div[data-testid="stToolbar"] {visibility: hidden !important; display: none !important;}
     button[title="View source code"] {display: none !important;}
     
-    /* 3. Kill the floating Streamlit phone menu/badge button completely */
+    /* Kill the floating Streamlit phone menu/badge button completely */
     .viewerBadge_container__1QSob {display: none !important; visibility: hidden !important;}
     div[class^="viewerBadge_"] {display: none !important; visibility: hidden !important;}
     iframe[title="Managed Hosting Badge"] {display: none !important; visibility: hidden !important;}
     
-    /* 4. Target the new mobile overlay menus and action bars */
+    /* Target the new mobile overlay menus and action bars */
     div[data-testid="stActionButton"] {display: none !important;}
     div[data-testid="stNotification"] {border: none !important;}
     .styles_borderWrapper__lCvak {border: none !important;}
     
-    #root > div:nth-child(1) > div > div > div > div > section > div {padding-top: 0rem !important;}
+    /* Custom Floating Mobile Header Styling */
+    .mobile-nav-bar {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        background-color: #1e3a8a;
+        color: white;
+        padding: 10px 15px;
+        z-index: 999999;
+        font-weight: bold;
+        text-align: center;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+    }
+    
+    /* Only show the custom bar on mobile responsive screens */
+    @media (max-width: 768px) {
+        .mobile-nav-bar { display: block; }
+        .stApp { margin-top: 40px !important; }
+    }
     </style>
 """
 st.markdown(hide_menu_style, unsafe_allow_html=True)
@@ -126,6 +146,16 @@ else:
     user_trades = st.session_state.user_data_stores[current_email]["trades"]
     user_rules = st.session_state.user_data_stores[current_email]["rules"]
 
+    # --- DUAL NAVIGATION CONTROLLER (Desktop vs Mobile) ---
+    menu_options = ["Dashboard", "Live Challenge", "Calendar", "Log New Trade", "My Rules Templates"]
+    
+    # 1. Custom Mobile Top Menu Dropdown Selector
+    st.markdown('<div class="mobile-nav-bar">📱 NAVIGATION MENU</div>', unsafe_allow_html=True)
+    
+    # If on mobile, this selectbox appears right at the very top of the page content
+    mobile_menu_placeholder = st.container()
+    
+    # 2. Standard Desktop Sidebar System
     st.sidebar.markdown(f"### 👋 Welcome, **{user_profile['name']}**")
     st.sidebar.caption(f"Profile: {current_email}")
     if st.sidebar.button("🚪 Close Workspace (Logout)", use_container_width=True):
@@ -134,10 +164,28 @@ else:
         
     st.sidebar.markdown("---")
     st.sidebar.title("📈 Navigation Menu")
-    menu = st.sidebar.radio(
+    
+    # We synchronize both selectors using state keys
+    if "nav_selection" not in st.session_state:
+        st.session_state.nav_selection = "Dashboard"
+        
+    desktop_menu = st.sidebar.radio(
         "Go To",
-        ["Dashboard", "Live Challenge", "Calendar", "Log New Trade", "My Rules Templates"]
+        menu_options,
+        key="desktop_nav_radio"
     )
+    
+    with mobile_menu_placeholder:
+        # This input dropdown block only stands out clearly on mobile views
+        mobile_menu = st.selectbox("📱 Mobile Switcher:", menu_options, key="mobile_nav_box")
+    
+    # Check which menu was interacted with and update page router master choice
+    if st.session_state.desktop_nav_radio != st.session_state.nav_selection:
+        st.session_state.nav_selection = st.session_state.desktop_nav_radio
+    elif st.session_state.mobile_nav_box != st.session_state.nav_selection:
+        st.session_state.nav_selection = st.session_state.mobile_nav_box
+        
+    menu = st.session_state.nav_selection
 
     # 1. DASHBOARD COMPONENT
     if menu == "Dashboard":
@@ -175,7 +223,7 @@ else:
             ).properties(height=300)
             st.altair_chart(chart, use_container_width=True)
         else:
-            st.info("No trades logged yet. Go to 'Log New Trade' to add your first setup!")
+            st.info("No trades logged yet. Change selector to 'Log New Trade' to add your first setup!")
 
     # 2. LIVE CHALLENGE COMPONENT
     elif menu == "Live Challenge":
