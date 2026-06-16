@@ -1,103 +1,117 @@
 import streamlit as st
-import pandas as pd
-from datetime import datetime, date
+from datetime import date
 
-# --- 1. PAGE CONFIGURATION ---
+# --- 1. PAGE CONFIG & HIDE DEFAULT UI ---
 st.set_page_config(page_title="Trade Diary", layout="wide", initial_sidebar_state="collapsed")
 
-# --- 2. CUSTOM UI (HAMBURGER & SIDEBAR) ---
 st.markdown("""
     <style>
-    /* Hide Default Streamlit Elements */
-    #MainMenu {visibility: hidden;} footer {visibility: hidden;} header {visibility: hidden;}
+    /* Hide Streamlit elements */
+    #MainMenu {visibility: hidden;}
+    footer {visibility: hidden;}
+    header {visibility: hidden;}
     [data-testid="stHeader"] {display: none !important;}
     
-    /* Custom Floating Hamburger */
-    .menu-trigger {
+    /* CUSTOM HAMBURGER BUTTON (TOP LEFT) */
+    .hamburger-btn {
         position: fixed;
         top: 15px;
         left: 15px;
-        z-index: 99999;
+        z-index: 999999;
         cursor: pointer;
-        background: #1E3A8A;
-        padding: 10px;
-        border-radius: 5px;
+        background: #1e1e1e;
+        padding: 8px 10px;
+        border-radius: 6px;
+        border: 1px solid #333;
         display: flex;
         flex-direction: column;
         gap: 4px;
+        transition: 0.3s;
     }
-    .bar { width: 20px; height: 2px; background: white; border-radius: 2px; }
+    .hamburger-btn:hover { background: #333; }
+    .line { width: 22px; height: 2px; background: white; border-radius: 2px; }
 
-    /* Sidebar Styling */
+    /* SIDEBAR STYLING (Gemini Dark Theme) */
     [data-testid="stSidebar"] {
-        background-color: #0f172a !important;
-        border-right: 1px solid #1e293b;
+        background-color: #131314 !important;
+        width: 260px !important;
+    }
+    .nav-item {
+        padding: 10px;
+        margin: 5px 0;
+        border-radius: 8px;
+        color: white;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        cursor: pointer;
     }
     </style>
 
-    <div class="menu-trigger" onclick="window.parent.document.querySelector('button[data-testid=\'sidebar-toggle\']').click()">
-        <div class="bar"></div>
-        <div class="bar"></div>
-        <div class="bar"></div>
+    <!-- The 3-Line Icon HTML -->
+    <div class="hamburger-btn" id="menu-toggle" onclick="window.parent.document.querySelector('button[data-testid=\'stSidebarCollapseButton\']').click()">
+        <div class="line"></div>
+        <div class="line"></div>
+        <div class="line"></div>
     </div>
 """, unsafe_allow_html=True)
 
-# --- 3. SESSION STATE ---
-if "logged_in" not in st.session_state:
-    st.session_state.logged_in = True # Set to True for demonstration
-
-# --- 4. NAVIGATION & PAGES ---
-def main():
-    st.sidebar.markdown("<br><br>", unsafe_allow_html=True)
-    st.sidebar.title("Navigation")
+# --- 2. SIDEBAR NAVIGATION ---
+with st.sidebar:
+    st.markdown("<br><br>", unsafe_allow_html=True)
+    st.markdown("### 💠 Trade Diary")
     
-    # Menu Options
-    page = st.sidebar.radio(
-        "GO TO:",
-        ["Dashboard", "Trade Log", "Calendar"],
+    # Simple navigation logic
+    selection = st.radio(
+        "Navigation",
+        ["Dashboard", "Trade Entry", "Calendar"],
         label_visibility="collapsed"
     )
+    
+    st.markdown("---")
+    st.caption("v1.0.2 • Connected")
 
-    if page == "Dashboard":
-        st.title("📈 Performance Dashboard")
-        col1, col2, col3 = st.columns(3)
-        col1.metric("Net PnL", "$1,250")
-        col2.metric("Win Rate", "65%")
-        col3.metric("Trades", "24")
+# --- 3. PAGE LOGIC ---
+if selection == "Dashboard":
+    st.title("📈 Dashboard")
+    c1, c2, c3 = st.columns(3)
+    c1.metric("Profit", "+$1,420", "12%")
+    c2.metric("Win Rate", "68%", "2%")
+    c3.metric("Balance", "$12,400")
+    
+    st.divider()
+    st.subheader("Recent Activity")
+    st.info("Your performance is up 5% compared to last week.")
 
-    elif page == "Trade Log":
-        st.title("📝 Log Your Trades")
-        with st.form("entry_form"):
-            c1, c2 = st.columns(2)
-            c1.text_input("Asset Symbol")
-            c1.number_input("Entry Price")
-            c2.selectbox("Position", ["Long", "Short"])
-            c2.number_input("Quantity")
-            st.form_submit_button("Save Trade")
+elif selection == "Trade Entry":
+    st.title("📝 New Trade")
+    with st.container(border=True):
+        col1, col2 = st.columns(2)
+        col1.text_input("Symbol", placeholder="e.g. BTCUSDT")
+        col2.selectbox("Side", ["Long", "Short"])
+        st.number_input("Entry Price", step=0.01)
+        st.button("Submit Trade", use_container_width=True)
 
-    elif page == "Calendar":
-        st.title("📅 Trading Calendar")
-        # Simplified Calendar View
-        d = st.date_input("Select Date to View Trades", date.today())
-        st.info(f"Viewing history for {d}")
-        # Dummy data
-        st.table(pd.DataFrame({
-            'Time': ['10:30', '14:15'],
-            'Symbol': ['BTC', 'ETH'],
-            'PnL': ['+$200', '-$50']
-        }))
+elif selection == "Calendar":
+    st.title("📅 Trading Calendar")
+    st.date_input("Filter by Date", date.today())
+    
+    # Simple table to represent a calendar log
+    st.table({
+        "Date": ["2023-10-01", "2023-10-02"],
+        "Trades": [4, 2],
+        "PnL": ["+$200", "-$50"]
+    })
 
-    # Logout at bottom of sidebar
-    st.sidebar.markdown("---")
-    if st.sidebar.button("Logout"):
-        st.session_state.logged_in = False
-        st.rerun()
-
-# --- 5. AUTH GATE ---
-if st.session_state.logged_in:
-    main()
-else:
-    st.title("Please Login")
-    if st.button("Enter App"):
-        st.session_state.logged_in = True
-        st.rerun()
+# --- 4. JS AUTO-SIDEBAR FIX ---
+# This ensures clicking the 3 lines always triggers the sidebar expand
+st.components.v1.html("""
+<script>
+    const parentDoc = window.parent.document;
+    const btn = parentDoc.querySelector('button[data-testid="stSidebarCollapseButton"]');
+    // Hide the native Streamlit button but keep it clickable via our icon
+    if(btn) {
+        btn.style.opacity = "0";
+    }
+</script>
+""", height=0)
